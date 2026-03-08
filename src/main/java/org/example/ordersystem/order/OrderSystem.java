@@ -12,12 +12,21 @@ public class OrderSystem {
     private static final Logger log = LoggerFactory.getLogger(OrderSystem.class);
 
     // ACOPLAMIENTO DIRECTO: instancia concreta del proveedor externo
-    private final PaymentProvider paymentProvider;
+    //private final PaymentProvider paymentProvider;
 
-    public OrderSystem() {
+    //Acomplamiento al contrato estable
+    private final PaymentService paymentService;
+
+
+
+    public OrderSystem(PaymentService paymentService) {
         // ACOPLAMIENTO DIRECTO: creación directa del proveedor externo
-        this.paymentProvider = new PaymentProvider();
-        log.debug("Sistema de órdenes iniciado");
+        // this.paymentProvider = new PaymentProvider();
+        // log.debug("Sistema de órdenes iniciado");
+
+        //Creacion directa al servicio de pago
+        this.paymentService=paymentService;
+     log.debug("Sistema de órdenes iniciado");
     }
 
     /**
@@ -35,16 +44,20 @@ public class OrderSystem {
         // del proveedor externo: executeTransaction(user, amount, currency)
         log.debug("Invocando proveedor externo — usuario={}, monto={}, moneda=COP", clientId, amount);
 
-        TransactionResponse response = paymentProvider.executeTransaction(clientId, amount, "COP");
+       // TransactionResponse response = paymentProvider.executeTransaction(clientId, amount, "COP");
 
-        // ACOPLAMIENTO DIRECTO: el sistema principal interpreta los campos del proveedor
-        // ("resultCode", "authId") y conoce el valor semántico de "00"
-        if ("00".equals(response.resultCode())) {
+       //LLamada al servicio de pago
+       PaymentResult paymentResult = paymentService.processPayment(clientId.toString(), amount);
+       
+
+
+
+        if (paymentResult.success()) {
             order.setStatus(OrderStatus.APPROVED);
-            log.info("Pago aprobado — orderId={}, codigoAutorizacion={}", order.getId(), response.authId());
+            log.info("Pago aprobado — orderId={}, codigoAutorizacion={}", order.getId(), paymentResult.codeAuthorization());
         } else {
             order.setStatus(OrderStatus.REJECTED);
-            log.warn("Pago rechazado — orderId={}, codigoResultado={}", order.getId(), response.resultCode());
+            log.warn("Pago rechazado — orderId={}, codigoResultado={}", order.getId(), paymentResult.codeAuthorization());
         }
 
         return order;
